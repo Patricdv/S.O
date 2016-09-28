@@ -15,10 +15,15 @@ struct {
 static struct proc *initproc;
 
 int nextpid = 1;
+int totalTickets = 0;
 extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+
+static unsigned long rand(unsigned long a) {
+  return (a * 279470273UL) % 4294967291UL;
+}
 
 void
 pinit(void)
@@ -47,6 +52,8 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->tickets = 10;
+  totalTickets = totalTickets + 10;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -126,7 +133,7 @@ growproc(int n)
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
 int
-fork(void)
+fork(int tickets)
 {
   int i, pid;
   struct proc *np;
@@ -144,7 +151,11 @@ fork(void)
   }
   np->sz = proc->sz;
   np->parent = proc;
+  np->tickets = tickets;
+  totalTickets = totalTickets + tickets;
   *np->tf = *proc->tf;
+
+  cprintf("\n-- This is the process id: %d, this is the tickets quantity: %d and this is the total of tickets:%d --\n", np->pid, np->tickets, totalTickets);
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -266,6 +277,7 @@ void
 scheduler(void)
 {
   struct proc *p;
+  int numberOfTickets, tickets;
 
   for(;;){
     // Enable interrupts on this processor.
@@ -273,25 +285,31 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    numberOfTickets = 0;
+
+    tickets = rand(totalTickets);
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+      numberOfTickets = numberOfTickets + p->tickets;
       if(p->state != RUNNABLE)
         continue;
-
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-      swtch(&cpu->scheduler, proc->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      proc = 0;
+      
+      if(numberOfTickets > tickets) {
+        // Switch to chosen process.  It is the process's job
+        // to release ptable.lock and then reacquire it
+        // before jumping back to us.
+        proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+        swtch(&cpu->scheduler, proc->context);
+        switchkvm();
+        
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        proc = 0;
+	break;
+      }
     }
     release(&ptable.lock);
-
   }
 }
 
@@ -420,6 +438,7 @@ kill(int pid)
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
         p->state = RUNNABLE;
+      totalTickets = totalTickets - p->tickets;
       release(&ptable.lock);
       return 0;
     }
@@ -455,7 +474,7 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
+    cprintf("%d %d %s %s", p->pid, p->tickets, state, p->name);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
