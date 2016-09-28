@@ -287,7 +287,7 @@ scheduler(void)
     acquire(&ptable.lock);
     numberOfTickets = 0;
 
-    tickets = rand(totalTickets);
+    tickets = rand(totalTickets) % totalTickets;
     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
       numberOfTickets = numberOfTickets + p->tickets;
       if(p->state != RUNNABLE)
