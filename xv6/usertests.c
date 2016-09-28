@@ -11,11 +11,10 @@
 int
 main(int argc, char *argv[])
 {
-  printf(1, "tests starting\n");
-  int iterator = 1;
-  while (iterator < 100) {
-    fork(iterator); 
-    iterator++;
+  printf(1, "\n\ntests starting\n");
+  int iterator;
+  for (iterator = 1; iterator <= 5; iterator++) {
+    fork(iterator);
   }
 
   exit();
