@@ -52,8 +52,6 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  p->tickets = 10;
-  totalTickets = totalTickets + 10;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -107,6 +105,8 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->tickets = 10;
+  totalTickets = totalTickets + 10;
 }
 
 // Grow current process's memory by n bytes.
@@ -287,7 +287,7 @@ scheduler(void)
     acquire(&ptable.lock);
     numberOfTickets = 0;
 
-    tickets = rand(totalTickets) % totalTickets;
+    tickets = rand(totalTickets)%totalTickets;
     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
       numberOfTickets = numberOfTickets + p->tickets;
       if(p->state != RUNNABLE)
