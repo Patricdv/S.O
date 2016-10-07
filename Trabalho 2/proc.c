@@ -301,7 +301,7 @@ scheduler(void)
     proc = choosenProccess;
     switchuvm(choosenProccess);
     choosenProccess->state = RUNNING;
-    choosenProccess->totalOfStrides = choosenProccess->totalOfStrides + choosenProcces->stride;
+    choosenProccess->totalOfStrides = choosenProccess->totalOfStrides + choosenProccess->stride;
     swtch(&cpu->scheduler, proc->context);
     switchkvm();
 
